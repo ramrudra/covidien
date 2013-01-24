@@ -1,0 +1,874 @@
+<?php
+/**
+* Implements hook_block_info().
+*/
+function covidien_widget_block_info() {
+  // This example comes from node.module.
+  $blocks['covidien_search_widget'] = array(
+    'info' => t('Career @ Covidien small (0 items) for Career page only (Covidien Widget)'),
+    'title' => t('Career@Covidien'), 
+  );
+  $blocks['covidien_career_widget'] = array(
+    'info' => t('Career @ Covidien small (0 items) GLOBAL (Covidien Widget)'),
+    'title' => t('Career@Covidien'), 
+  );
+  $blocks['covidien_search_sortby_widget'] = array(
+    'info' => t('Search sortby widget (Covidien Widget)'),
+  );
+  $blocks['covidien_searchcontent_widget'] = array(
+    'info' => t('Career @ Covidien (3 items) search with content (Covidien Widget)'),
+    'title' => t('Career@Covidien'),
+  );
+  $blocks['covidien_search_career_widget'] = array(
+    'info' => t('Career @ Covidien (3 items) search with content for GLOBAL usage (Covidien Widget)'),
+    'title' => t('Career@Covidien'),
+  );
+  $blocks['covidien_front_careers_widget'] = array(
+    'info' => t('Career @ Covidien (5 items) with content for career page only (Covidien Widget)'),
+    'title' => t('Career@Covidien'), 
+  );
+  $blocks['covidien_widget_jobalert'] = array(
+    'info' => t('Alert me to careers widget (Covidien Widget)'),
+    'title' => t('Alert me to careers'), 
+  );
+  $blocks['covidien_widget_search_page'] = array(
+    'info' => t('Better Search page Filter (Covidien Widget)'),
+  );
+  $blocks['covidien_widget_sp_title'] = array(
+    'info' => t('Search page title'),
+  );
+   $blocks['covidien_widget_alert_me_job'] = array(
+    'info' => t('Alert me about similar jobs'),
+    'title' => t('Alert about similar vacancies'), 
+  );
+  $blocks['covidien_widget_currently_hiring'] = array(
+    'info' => t('Job functions currently hiring'),
+    'title' => t('Job functions currently hiring'), 
+  );
+  return $blocks;
+}
+/**
+* Implements hook_block_view().
+*/
+function covidien_widget_block_view($delta = '') {
+  // This example is adapted from node.module.
+  $widget = '';
+  if(arg(0) == 'node') {
+    $node =  node_load(arg(1));
+    $widget = isset($node->field_choose_widget[LANGUAGE_NONE]['0']['value']) 
+  ? $node->field_choose_widget[LANGUAGE_NONE]['0']['value'] : '';
+  }
+
+  $block = array();
+  switch ($delta) {
+    case 'covidien_searchcontent_widget':
+    if ($widget == 1) {
+      $block['content'] =  drupal_get_form('covidien_widget_load_careers_form');
+    } else {
+       $block['content'] = '';
+    }
+    break;
+
+    case 'covidien_search_widget':
+    if ($widget == 2) {
+      $block['content'] = drupal_get_form('covidien_widget_load_job_form');
+    } else {
+      $block['content'] = '';
+    }
+
+    break;
+    case 'covidien_career_widget':
+      $block['content'] =  drupal_get_form('covidien_widget_load_job_form');
+    break;
+
+    case 'covidien_search_career_widget':
+      $block['content'] = drupal_get_form('covidien_widget_load_careers_form');
+    break;
+
+    case 'covidien_search_sortby_widget':
+      $block['content'] =  drupal_get_form('covidien_widget_search_sortby_form');
+    break;
+
+    case 'covidien_front_careers_widget':
+      $block['content'] =  drupal_get_form('covidien_widget_load_front_careers_form');
+    break;
+
+    case 'covidien_widget_jobalert':
+      $block['content'] = drupal_get_form('covidien_widget_jobalert_form');
+    break;
+
+    case 'covidien_widget_search_page':
+      $block['content'] = drupal_get_form('covidien_widget_spf');
+    break;
+
+    case 'covidien_widget_sp_title':
+      $block['content'] = '<p style="display: inline;"><a href="Javascript:history.go(-1);" id="backLink"  onClick="history.go(-1);return true;" class="back">Back&nbsp;|&nbsp;</a></p>
+<h1 style="display: inline;">Search Results</h1>';
+    break;
+
+    case 'covidien_widget_alert_me_job':
+      $block['content'] = drupal_get_form('covidien_widget_alert_me_job_form');
+    break;
+    
+    case 'covidien_widget_currently_hiring':
+    if (arg(1 == 'term')) {
+      $block['content'] = covidien_widget_currently_hiring(arg(2));
+    }
+    break;
+  }
+  return $block;
+}
+
+/**
+* Form for loading job block with job counter and links.
+*/
+function covidien_widget_load_job_form($form, &$form_state) {
+   $tids = _covidien_widget_load_job_function_tids();
+   $options = array();
+   if (isset($tids)) {
+   $terms = taxonomy_term_load_multiple($tids);
+     //dsm($terms);
+   foreach($terms as $term) {
+     $options[$term->tid] = $term->name;
+   }
+   }
+   $form = array();
+   asort($options);
+   $form['select_job_function']['joblist'] = array(
+    '#type' => 'select',
+    '#options' => array('All' => 'Select job function') + $options,
+    '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_change_values',
+      'wrapper' => 'covidien-wrapper',
+      ),
+    );
+    $form['select_job_function']['wrapper'] = array(
+    '#prefix' => '<div id="covidien-wrapper">',
+    '#suffix' => '</div>',
+  );
+   if (isset($form_state['values']['joblist'])) {
+    $taxoterm = $form_state['values']['joblist'];
+    $val = _covidien_widget_jobcounter($taxoterm);
+   } else {
+     $taxoterm = 'All';
+     $val = _covidien_widget_jobcounter();
+   }
+  $form['select_job_function']['wrapper']['counterandlink'] = array(
+    '#markup' => '<p>There are '. $val .' openings globally.<br /><div class="btn">' . l(t('Search'), 'location/search',  array('query' => array('jf1' =>  $taxoterm))). '</p></div>
+     <div class="graybtn">' . l(t('Advanced search'), 'location/search',  array('query' => array('jf1' =>  $taxoterm, 'advbox' => 't'))). '</div>',
+  );
+   return $form;
+}
+
+/**
+* Custom form for sorting the search page items (location/search/*).
+*/
+function covidien_widget_search_sortby_form($form, &$form_state) {
+  $form = array();
+  $form['sortby'] = array(
+    '#title' => t('Sort by:'),
+    '#type' => 'radios',
+    '#multiple' => FALSE,
+    '#options' => array(
+      'title' => t('Title'),
+      'field_job_posted_date_value' => t('Date posted'),
+    ),
+     '#attributes' => array(
+      'onclick' => 'document.getElementById("covidien-widget-search-sortby-form").submit();',
+      ),
+    
+    '#default_value' => 'field_job_posted_date_value',
+  );
+  $form['sort'] = array(
+    '#type' => 'radios',
+    '#multiple' => FALSE,
+    '#options' => array(
+      'ASC' => t('Ascending'),
+      'DESC' => t('Descending'),
+    ),
+    '#attributes' => array(
+      'onclick' => 'document.getElementById("covidien-widget-search-sortby-form").submit();',
+      ),
+    
+    '#default_value' => 'DESC',
+  );
+  $form['submit'] = array(
+     '#type' => 'submit',
+     '#action' => array('covidien_widget_search_sortby_submit'),
+     '#value' => 'submit',
+  );
+   return $form;
+}
+
+/**
+* Implements hook_form_validate().
+*/
+function covidien_widget_search_sortby_form_validate($form, &$form_state) {
+
+}
+
+/**
+* Implements hook_form_submit().
+*/
+function covidien_widget_search_sortby_form_submit($form, &$form_state) {
+  $destination = drupal_get_destination();
+  global $base_path;
+   if (isset($_GET['sort_order'])) {
+      $dest = explode('sort_order=', $destination['destination']);
+      $destination['destination'] = substr($dest[0], 0, -1);
+   }
+  if ($destination['destination'] == 'location/search') {
+     header('Location:' . $base_path . $destination['destination'] . '?sort_order='
+       . $form['sort']['#value'] . '&sort_by=' . $form['sortby']['#value']);
+     exit;
+   } else {
+      header('Location:' . $base_path . $destination['destination'] . '&sort_order='
+       . $form['sort']['#value'] . '&sort_by=' . $form['sortby']['#value']);
+     exit;
+   }
+
+  return;
+}
+
+/**
+* Implements hook_form_alter().
+* Change some values before they load.
+*/
+function covidien_widget_form_alter(&$form, &$form_state, $form_id) {
+  //dsm($form);
+  if ($form['#id'] == 'views-exposed-form-location-search-block-1') {
+    $form['jf1']['#options']['All'] = t('Select job function');
+    //$form['jf']['#ajax']['progress'] = array('type' => 'none');
+  }
+  if ($form['#id'] == 'covidien-widget-search-sortby-form') {
+    //dsm($form);
+  if (isset($_GET['sort_by'])) {
+    $form['sortby']['#default_value'] = $_GET['sort_by'];
+   }
+  if (isset($_GET['sort_order'])) {
+    $form['sort']['#default_value'] = $_GET['sort_order'];
+   }
+  }
+}
+
+/**
+ * Function for handling ajax request
+ */
+function covidien_widget_change_values($form, $form_state) {
+  // Return the dropdown list including the wrapper
+  return $form['select_job_function']['wrapper'];
+}
+$records = '';
+function _covidien_widget_load_job_function_tids() {
+  $records = array();
+  $result = db_select('field_data_field_job_function_ref', 'jf')
+    ->fields('jf')
+    ->condition('bundle', 'job','=')
+    ->groupBy('jf.field_job_function_ref_tid')
+    ->condition('deleted', 0,'=')
+    ->execute();
+    while($record = $result->fetchAssoc()) {
+        $records[] = $record['field_job_function_ref_tid'];
+    }
+  return $records;
+}
+
+/**
+* Load content with form 3 elements.
+*/
+function covidien_widget_load_careers_form($form, &$form_state) {
+  $tids = _covidien_widget_load_job_function_tids();
+  $options = array();
+  $default_value = '';
+  if (isset($tids)) {
+    $terms = taxonomy_term_load_multiple($tids);
+    $default_value = '';
+    $menu = menu_get_active_trail();
+    foreach($terms as $term) {
+      $options[$term->tid] = $term->name;
+      if (isset($menu[2]) && strtolower($menu[2]['title']) == strtolower($term->name)) {
+        $default_value = $term->tid;
+      }
+    }
+  }
+  $form = array();
+  asort($options);
+  $form['select_jobcontent_function']['joblist'] = array(
+    '#type' => 'select',
+    '#options' => array('All' => 'Select job function') + $options,
+    '#default_value' => $default_value,
+    '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_load_careers_form_change_values',
+      'wrapper' => 'career-widget-wrapper',
+      ),
+    );
+    $form['select_jobcontent_function']['wrapper'] = array(
+    '#prefix' => '<div id="career-widget-wrapper">',
+    '#suffix' => '</div>',
+  );
+   if (isset($form_state['values']['joblist'])) {
+    $taxoterm = $form_state['values']['joblist'];
+    $val = _covidien_widget_jobcounter($taxoterm);
+   }
+   if (!empty($default_value)) {
+      $taxoterm = $default_value;
+      $val = _covidien_widget_jobcounter($default_value);
+   }
+   if (empty($form_state['values']['joblist']) && empty($default_value)) {
+     $taxoterm = 'All';
+     $val = _covidien_widget_jobcounter();
+   }
+   $joblist = _covidien_widget_load_jobitems($taxoterm);
+  $form['select_jobcontent_function']['wrapper']['counterandlink'] = array(
+    '#markup' => '<p>There are '. $val .' openings globally.<br />'
+        . $joblist . '<div class="btn">'
+    . l(t('Search'), 'location/search',  array('query' => array('jf1' =>  $taxoterm))). '</p></div>
+        <div class="graybtn">' . l(t('Advanced search'), 'location/search',
+           array('query' => array('jf1' =>  $taxoterm, 'advbox' => 't'))). '</div>',
+  );
+   return $form;
+}
+
+
+
+/**
+* Load content with form 3 elements.
+*/
+function covidien_widget_load_front_careers_form($form, &$form_state) {
+  $tids = _covidien_widget_load_job_function_tids();
+  $options = array();
+  $default_value = '';
+  if (isset($tids)) {
+    $terms = taxonomy_term_load_multiple($tids);
+    $default_value = '';
+    $menu = menu_get_active_trail();
+    foreach($terms as $term) {
+      $options[$term->tid] = $term->name;
+      if (isset($menu[2]) && strtolower($menu[2]['title']) == strtolower($term->name)) {
+        $default_value = $term->tid;
+      }
+    }
+  }
+  $form = array();
+  asort($options);
+  $form['select_jobcontent_function']['joblist'] = array(
+    '#type' => 'select',
+    '#options' => array('All' => 'Select job function') + $options,
+    '#default_value' => $default_value,
+    '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_load_careers_form_change_values',
+      'wrapper' => 'front-career-widget-wrapper',
+      ),
+    );
+    $form['select_jobcontent_function']['wrapper'] = array(
+    '#prefix' => '<div id="front-career-widget-wrapper">',
+    '#suffix' => '</div>',
+  );
+   if (isset($form_state['values']['joblist'])) {
+    $taxoterm = $form_state['values']['joblist'];
+    $val = _covidien_widget_jobcounter($taxoterm);
+   }
+   if (!empty($default_value)) {
+      $taxoterm = $default_value;
+      $val = _covidien_widget_jobcounter($default_value);
+   }
+   if (empty($form_state['values']['joblist']) && empty($default_value)) {
+     $taxoterm = 'All';
+     $val = _covidien_widget_jobcounter();
+   }
+   $joblist = _covidien_widget_load_jobitems($taxoterm, 5, TRUE);
+  $form['select_jobcontent_function']['wrapper']['counterandlink'] = array(
+    '#markup' => '<p>There are '. $val .' openings globally.<br />'
+        . $joblist . '<div class="btn">'
+    . l(t('Search'), 'location/search',  array('query' => array('jf1' =>  $taxoterm))). '</p></div>
+        <div class="graybtn">' . l(t('Advanced search'), 'location/search',
+           array('query' => array('jf1' =>  $taxoterm, 'advbox' => 't'))). '</div>',
+  );
+   return $form;
+}
+/**
+ * Function for handling ajax request
+ */
+function covidien_widget_load_careers_form_change_values($form, $form_state) {
+  // Return the dropdown list including the wrapper
+  return $form['select_jobcontent_function']['wrapper'];
+}
+
+/**
+ * Load job Items from db.
+ */
+function _covidien_widget_load_jobitems($tid = '', $count = 3, $location = FALSE) {
+  $out = array();
+  $query = db_select('node', 'n');
+  $query->fields('n', array('title', 'nid'));
+  if ($location == TRUE) {
+    $query->fields('l', array('field_location_full_name_value'));
+  }
+  $query->join('field_data_field_job_function_ref', 't', 'n.nid = t.entity_id');
+  $query->condition('n.type', 'job','=');
+  if ($location == TRUE) {
+    $query->join('field_data_field_location_full_name', 'l'
+                 , 'l.entity_id = t.entity_id');
+  }
+  $query->condition('n.status', 1,'=');
+  if (is_numeric($tid)) {
+      $query->condition('t.field_job_function_ref_tid', $tid ,'=');
+  }
+  $query->range(0, $count);
+  //$query->groupBy('c.field_city_value');
+  $results = $query->execute();
+  while($record = $results->fetchAssoc()) {
+    if ($location == FALSE) {
+        $out['items'][] = l($record['title'], 'node/'. $record['nid']);
+      }
+      else {
+        $out['items'][] = l('<div class="job-title">' . $record['title']  
+                            . '</div>', 'node/' . $record['nid'], array('html' => TRUE))
+                            . '<span class="location-full-name">' . t('Location') 
+                            . ':</span>'. '<span class="location_full_name-data">' 
+                            . $record['field_location_full_name_value']  . '</span>';
+      }
+  }
+  return theme('item_list', $out);
+}
+
+/**
+* Covidien Jobalert form loads jobs from taxonomy.
+*/
+function covidien_widget_jobalert_form($form, &$form_state) {
+  $jobfunction = array();
+  $tids = _covidien_widget_load_job_function_tids();
+  if (isset( $tids )) {
+    $terms = taxonomy_term_load_multiple($tids);
+    //dsm($terms);
+    $default_sf = '';
+    foreach($terms as $term) {
+      $jobfunction[$term->tid] = $term->name;
+    }
+  }
+   asort($jobfunction);
+  $form = array();
+  if (isset($_GET['jf1'])) {
+   $default_sf = $_GET['jf1'];
+  }
+  $form['job_function'] = array(
+    '#type' => 'select',
+    '#options' => array('' => 'Job function') + $jobfunction,
+    '#default_value' => $default_sf, 
+  );
+
+  $form['covidien_widget_alert']['alert_country'] = array(
+    //'#title' => t('Country'),
+    '#type' => 'select',
+    '#options' => array('' => t('Country')) + _covidien_widget_countries(),
+    '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_jobalert_form_cities',
+      'wrapper' => 'country-cites-widget-wrapper',
+      'progress' => array('type' => 'none'),
+    ),
+  );
+ 
+  // Wrapper for city dropdown list
+ $form['covidien_widget_alert']['wrapper'] = array(
+    '#prefix' => '<div id="country-cites-widget-wrapper">',
+    '#suffix' => '</div>',
+  );
+ // dsm($form);
+  // Default options for city dropdown list
+  $options = array('' => t('City')) + _covidien_widget_countrycity();
+  if (isset($form_state['values']['alert_country'])) {
+   // dsm($form_state['values']['country']);
+    // Pre-populate options for city dropdown list if country id is set\
+    $options = array('' => t('City')) + _covidien_widget_countrycity($form_state['values']['alert_country']);
+   // dsm($form_state['values']['country']);
+  }
+
+  $form['covidien_widget_alert']['wrapper']['cities'] = array(
+    //'#title' => t('City'),
+    '#type' => 'select',
+    '#options' => $options,
+  );
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#size' => 35,
+    '#required' => TRUE,
+    '#maxlength' => 128,
+    '#attributes' => array(
+      'placeholder' => t('Enter your Email address'),
+    ),
+  );
+  $form['agreement'] = array(
+    '#type' => 'checkbox',
+    '#required' => TRUE,
+    '#title' => t('Agree to Terms and Conditions'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  // dsm($form);
+  return $form;
+}
+
+/**
+ * Function for handling ajax request
+ */
+function covidien_widget_jobalert_form_cities($form, $form_state) {
+  // Return the dropdown list including the wrapper
+  return $form['covidien_widget_alert']['wrapper'];
+}
+
+/**
+ * Implements hook_form_validate().
+ */
+function covidien_widget_jobalert_form_validate($form, &$form_state) {
+
+}
+
+/**
+ * Implements hook_form_submit().
+ */
+function covidien_widget_jobalert_form_submit($form, &$form_state) {
+  global $base_path;
+  if ($form['job_function']['#value'] != '') {
+    $term = taxonomy_term_load($form['job_function']['#value']);
+    $job_function = urlencode($term->name);
+  } else {
+    $job_function = '';
+  }
+  if (isset($form['covidien_widget_alert']['alert_country']['#value'])) {
+    $country = urlencode($form['covidien_widget_alert']['alert_country']['#value']);
+  } else {
+    $country = '';
+  }
+  if (isset($form['covidien_widget_alert']['wrapper']['cities']['#value'])) {
+    $city = urlencode($form['covidien_widget_alert']['wrapper']['cities']['#value']);
+  } else {
+    $city = '';
+  }
+  if (isset($form['email']['#value'])) {
+   $email = $form['email']['#value'];
+  }
+  else {
+    $email = '';
+  }
+  if (isset($form['agreement']['#value'])) {
+   $agreement = urlencode($form['agreement']['#value']);
+  }
+  else {
+    $email = '';
+  }
+  header("Location:". $base_path . "node/116?jf=". $job_function 
+    . "&cn=". $country . "&ct=". $city . "&eml=". $email . "&agr=". $agreement);
+  exit;
+}
+
+
+/**
+ * Create search page filter (search) form.
+ */
+function covidien_widget_spf($form, &$form_state) {
+  $countries =  _covidien_widget_countries();
+  $form = array();
+  asort($countries);
+  $tids = _covidien_widget_load_job_function_tids();
+  $terms = taxonomy_term_load_multiple($tids);
+  //dsm($terms);
+  foreach($terms as $term) {
+    $job_functions[$term->tid] = $term->name;
+  }
+  $form = array();
+  asort($job_functions);
+  $jf1 = isset($_GET['jf1'])     ? $_GET['jf1'] : '';
+  $jf = isset($_GET['jf'])       ? $_GET['jf'] : '';
+  $cn = isset($_GET['cn'])       ? $_GET['cn'] :"";
+  $kw = isset($_GET['kw'])       ? $_GET['kw'] : '';
+  $jid = isset($_GET['jid'])     ? $_GET['jid'] : '';
+  $ct = isset($_GET['ct'])       ? $_GET['ct'] : '';
+
+
+  $form['jsdivstart'] = array(
+    '#markup' => '<div class="job_search">
+    <div class="job-search-dropdowns">',
+  );
+  $form['covidien_widget_spf']['jf1'] = array(
+    '#type' => 'select',
+    '#options' => array('All' => 'Job function') + $job_functions,
+    '#default_value' => $jf1,
+  /*  '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_spf_dropdown_country',
+      'wrapper' => 'job_function-country-wrapper',
+      'progress' => array('type' => 'none'),
+    ),*/
+  );
+ /** // Wrapper for city dropdown list
+ $form['covidien_widget_spf']['country_wrapper'] = array(
+    '#prefix' => '<div id="job_function-country-wrapper">',
+    '#suffix' => '</div>',
+  );
+  if (isset($form_state['values']['jf1']) && is_numeric($form_state['values']['jf1'])) {
+    // dsm($form_state['values']['country']);
+    // Pre-populate options for city dropdown list if country id is set\
+    $countries = array('' => t('Country')) + 
+       _covidien_widget_countries($form_state['values']['jf1']);
+  }*/
+   // Country dropdown list
+  $form['covidien_widget_spf']['country_wrapper']['country'] = array(
+    //'#title' => t('Country'),
+    '#type' => 'select',
+    '#options' => array('' => t('Country')) +  $countries,
+    '#default_value' => $cn,
+    '#ajax' => array(
+      'event'=>'change',
+      'callback' =>'covidien_widget_spf_dropdown_city',
+      'wrapper' => 'country-city-wrapper',
+      'progress' => array('type' => 'none'),
+    ),
+  );
+  
+  // Wrapper for city dropdown list
+ $form['covidien_widget_spf']['city_wrapper'] = array(
+    '#prefix' => '<div id="country-city-wrapper">',
+    '#suffix' => '</div>',
+  );
+ 
+  // Default options for city dropdown list
+  $cities = array('' => t('City')) +  _covidien_widget_countrycity();
+  if (isset($form_state['values']['country'])) {
+    // dsm($form_state['values']['country']);
+    // Pre-populate options for city dropdown list if country id is set\
+    $cities = array('' => t('City')) +  _covidien_widget_countrycity($form_state['values']['country']);
+   // dsm($form_state['values']['country']);
+  }
+ 
+  // Country dropdown list
+  $form['covidien_widget_spf']['city_wrapper']['city'] = array(
+    //'#title' => t('City'),
+    '#type' => 'select',
+    '#options' => $cities,
+    '#default_value' => $ct,
+  );
+ 
+  // Form submit button
+  $form["covidien_widget_spf"]["submit"] = array(
+    '#prefix' => '
+    </div>
+    <div class="buttons">
+    <a href="#" class="link" id="openadv">' . t('Advanced Search'). '</a>
+    </div>
+    <div class="buttons">',
+    "#value"  => t("Submit"),
+    "#type"   => "submit",
+    "#submit" => array("covidien_widget_spf_submit"),
+    '#suffix' => '</div>'
+  );
+  $advboxclass = isset($_GET['advbox']) ? 'display:block;' : "display:none;";
+
+  $form['jsdf'] = array(
+    '#markup' => '
+    <div id="advancedbox" style=" '. $advboxclass .'">
+    <div class="advanced-job-search-bigbox">',
+  );
+  $form['jf'] = array(
+    '#type' => 'select',
+    '#options' => $job_functions,
+    '#multiple' => TRUE,
+    '#default_value' => $jf,
+  );
+  $form['jsdsd'] = array(
+    '#markup' => '<div style=" ">' . t('Multiple job families may be selected. Scroll the list for more options') . '</div></div>
+    <div class="job-advanced-rightbox">' ,
+  );
+ 
+  $form['kw'] = array(
+    '#type' => 'textfield',
+    '#attributes' => array(
+      'placeholder' => t('Keyword'),
+    ),
+    '#default_value' => $kw,
+  );
+   $form['jid'] = array(
+    '#type' => 'textfield',
+    '#attributes' => array(
+      'placeholder' => t('Job Opening ID'),
+    ),
+    '#jid' => $jid,
+  );
+  $form['jsdiv'] = array(
+    '#markup' => '<br>There are currently (300) vacancies at covidien with this criteria.
+    </div>
+    </div>
+    </div>', // job search
+  );
+  return $form;
+}
+/**
+ * Function for handling ajax request
+ */
+function covidien_widget_spf_dropdown_country($form, $form_state) {
+  // Return the dropdown list including the wrapper
+  return $form['covidien_widget_spf']['country_wrapper'];
+}
+/**
+ * Function for handling ajax request
+ */
+function covidien_widget_spf_dropdown_city($form, $form_state) {
+  // Return the dropdown list including the wrapper
+  return $form['covidien_widget_spf']['city_wrapper'];
+}
+
+/**
+ * Implements hook_form_validate().
+ */
+function covidien_widget_spf_validate($form, $form_state) {
+
+}
+
+/**
+ * Implements hook_form_submit().
+ */
+function covidien_widget_spf_submit($form, $form_state) {
+  $jf = '';
+  $adv = '';
+  $sorting = '';
+  //dsm($form);
+  $destination = drupal_get_destination();
+  $destination = $destination['destination'];
+  global $base_path;
+  if (isset($_GET['sort_order']) && $_GET['sort_order'] != '') {
+    '&sort_order=' . $_GET['sort_order'] . '&sort_by=' . $_GET['sort_by'];
+  }
+    if (isset($_GET['jf1']) || isset($_GET['advbox'])) {
+      $dest = explode('?', $destination);
+      $destination = $dest[0];
+   }
+  // dsm($destination);
+    if (isset($form['jf']['#value'])) {
+      foreach($form['jf']['#value'] as $key => $val) {
+        $jf .= "&jf[]=". $val;
+      }
+   }
+  if (isset($_GET['advbox']) || isset($_GET['jf']) ||
+        isset($_GET['jid']) || isset($_GET['kw'])) {
+    $adv = '&advbox=t';
+   }
+  if ($destination == 'location/search') {
+     header("Location:"
+      . $base_path . $destination
+      . "?jf1=". $form['covidien_widget_spf']['jf1']['#value']
+      . "&cn=". urlencode($form['covidien_widget_spf']['country_wrapper']['country']['#value'])
+      . "&ct=". urlencode($form['covidien_widget_spf']['city_wrapper']['city']['#value'])
+      .  $jf . "&kw=". urlencode($form['kw']['#value'])
+      . "&jid=" . urlencode($form['jid']['#value']) . $adv . $sorting
+      );
+    exit;
+  }
+}
+function covidien_widget_alert_me_job_form() {
+  $form = array();
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#size' => 35,
+    '#required' => TRUE,
+    '#maxlength' => 128,
+    '#attributes' => array(
+      'placeholder' => t('Enter your Email address'),
+    ),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  $form['agreement'] = array(
+    '#type' => 'checkbox',
+    '#required' => TRUE,
+    '#title' => t('Agree to Terms and Conditions'),
+  );
+  return $form;
+}
+/**
+* Return count of the job.
+* Default value All jobs arg (Taxonomy term id).
+*/
+function _covidien_widget_jobcounter($tid = '') {
+  if (empty($tid)) {
+    $query = db_select('field_data_field_job_function_ref', 'jf')
+    ->fields('jf')
+    ->condition('deleted', 0,'=')
+    ->execute()
+    ->rowCount();
+  } else {
+     $query = db_select('field_data_field_job_function_ref', 'jf')
+    ->fields('jf')
+    ->condition('field_job_function_ref_tid', $tid,'=')
+    ->condition('deleted', 0,'=')
+    ->execute()
+    ->rowCount();
+  }
+  return $query;
+}
+
+/**
+ *  Select country values db request.
+ * jf Job function.
+*/
+function _covidien_widget_countries() {
+  $out = array();
+  $country_field_name = 'country'; // its easier to change.
+
+$query = db_select('field_data_field_ ' . $country_field_name, 'c');
+  $query->fields('c', array('field_'.  $country_field_name . '_value'));
+  $query->condition('c.deleted', 0,'=');
+  $query->groupBy('c.field_'. $country_field_name . '_value');
+  $result = $query->execute();
+  while($record = $result->fetchAssoc()) {
+    $out[$record['field_'.  $country_field_name . '_value']] = $record['field_'.  $country_field_name . '_value'];
+  }
+  return $out;
+}
+
+/**
+ *  Select the city values db request can find by country or without.
+ * $c = country name.
+*/
+function _covidien_widget_countrycity($c = '') {
+  $out = array();
+  $query = db_select('field_data_field_city', 'c');
+  $query->fields('c', array('field_city_value'));
+  $query->fields('cn', array('field_country_value'));
+  $query->join('field_data_field_country', 'cn', 'c.entity_id = cn.entity_id');
+  $query->condition('c.entity_type', 'taxonomy_term','=');
+  $query->condition('c.deleted', 0,'=');
+  if (!empty($c)) {
+     $query->condition('cn.field_country_value', $c,'=');
+  }
+  $query->groupBy('c.field_city_value');
+  $results = $query->execute();
+  while($record = $results->fetchAssoc()) {
+    $out[$record['field_city_value']] = $record['field_city_value'];
+  }
+  return $out;
+}
+
+
+function covidien_widget_currently_hiring($term = '') {
+ $items = array();
+  $query = db_select('field_data_field_job_function_text', 'j');
+  $query->fields('j', array('field_job_function_text_value'));
+  $query->join('field_data_field_location_full_ref', 't', 't.entity_id = j.entity_id');
+  $query->condition('j.deleted', 0,'=');
+  $query->condition('t.entity_type', 'taxonomy_term','=');
+  $query->condition('t.field_location_full_ref_tid', $term,'=');
+  $query->groupBy('j.field_job_function_text_value');
+  $query->range(0, 5);
+  $results = $query->execute();
+  while($record = $results->fetchAssoc()) {
+    $items['items'][] = $record['field_job_function_text_value'];
+  }
+  return theme('item_list', $items);
+}

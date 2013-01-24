@@ -1,0 +1,33 @@
+name = Covidien
+description = A multi-column theme developed by Umar draz
+package = Core
+version = VERSION
+core = 7.x
+stylesheets[all][] = css/mainstyle.css
+stylesheets[all][] = css/slideshowstyle.css
+
+scripts[] = js/script.js
+scripts[] = js/jquery.cycle.js
+
+
+
+regions[content]        = Page Content
+regions[home_about]     = Home About Covidient
+regions[home_locations]     = Home Locations
+regions[home_cares]        = Home Cares
+regions[banner_area] = Banner area
+regions[career_leftside]   = Career left sidebar
+regions[culture_leftside]   = Culture left sidebar
+regions[aboutus_leftside]   = About us left sidebar
+regions[history_detail]   = History page Detail
+regions[right_sidebar]  = Right Sidebar
+regions[frontpage_right_sidebar]  = Frontpage Right Sidebar
+regions[footer_links]   = Footer Links
+regions[social_share]   = Social Share
+regions[copyright]      = Copyright
+
+; Information added by drupal.org packaging script on 2012-11-07
+version = "7.17"
+project = "drupal"
+datestamp = "1352325357"
+

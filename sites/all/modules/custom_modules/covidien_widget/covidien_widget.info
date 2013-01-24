@@ -1,0 +1,6 @@
+name = Covidien widget
+core = 7.x
+version = 7.0
+package = Covidien custom
+
+ 

@@ -1,0 +1,5 @@
+; $Id: quicktabrotate.info,v 1.1 2009/05/23 14:25:00 grndlvl Exp $
+name = quick tab rotator
+description = rotuje zalozky v quicktab
+core = 7.x
+

@@ -1,0 +1,12 @@
+name = Context Block Visibility
+description = Visibility for blocks based on context
+core = 7.x
+dependencies[] = context
+
+
+; Information added by drupal.org packaging script on 2012-11-30
+version = "7.x-1.0-alpha1"
+core = "7.x"
+project = "context_block_visibility"
+datestamp = "1354266706"
+
